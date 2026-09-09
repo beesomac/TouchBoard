@@ -230,7 +230,11 @@ struct PlayCanvasView: View {
         -> (id: UUID, point: CGPoint, t: CGFloat)? {
         var best: (id: UUID, point: CGPoint, t: CGFloat, dist: CGFloat)? = nil
         let threshold: CGFloat = 0.06
-        for player in store.onFieldPlayers where player.id != excluding {
+        // On-field players, plus any player with a run (a sub running out of the box), so you
+        // can pass to/from a sub as they come on.
+        for player in store.roster where player.id != excluding
+            && (!store.isBenched(player.id, in: store.currentIndex)
+                || store.currentTouch.runs[player.id] != nil) {
             let start = store.startPos(player.id)
             if !onlyStarts, let run = store.currentTouch.runs[player.id], run.points.count > 1 {
                 let n = Geo.nearestOnPolyline(p, run.points)
@@ -248,11 +252,11 @@ struct PlayCanvasView: View {
         return (b.id, b.point, b.t)
     }
 
-    /// If a point is near the end of an on-field player's run, returns that player (to extend it).
+    /// If a point is near the end of any player's run, returns that player (to extend it).
     private func nearestRunEnd(to p: CGPoint) -> UUID? {
         let threshold: CGFloat = 0.05
         var best: (id: UUID, dist: CGFloat)? = nil
-        for player in store.onFieldPlayers {
+        for player in store.roster {
             guard let run = store.currentTouch.runs[player.id], let end = run.points.last else { continue }
             let d = Geo.dist(p, end)
             if d <= threshold && (best == nil || d < best!.dist) { best = (player.id, d) }
