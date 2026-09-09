@@ -684,19 +684,13 @@ final class PlayStore: ObservableObject {
         touches[currentIndex].carrier = id
     }
 
-    /// Tap a bench sub to bring it onto the field, just inside the sideline by its box, so it
-    /// can then be given a run out. Getting back to six on the field (running someone off into
-    /// the box) is up to the coach; whoever ends in a box at the play-the-ball is subbed off.
+    /// Tap a bench sub to arm it: it stays in its box, and the next run you draw becomes its
+    /// run out of the box (the run auto-anchors to the box start). Getting back to six on the
+    /// field is up to the coach; whoever is in a box at the play-the-ball is subbed off.
+    @Published var armedSub: UUID? = nil
     func tapPlayer(_ id: UUID) {
-        guard let p = player(id), isBenched(id, in: currentIndex) else { return }
-        pushHistory()
-        let x = startPos(id, in: currentIndex).x
-        let edgeY: CGFloat = (p.team == .attack) ? FieldLayout.field.maxY - 0.03
-                                                 : FieldLayout.field.minY + 0.03
-        touches[currentIndex].starts[id] = CGPoint(
-            x: min(max(x, FieldLayout.field.minX + 0.02), FieldLayout.field.maxX - 0.02), y: edgeY)
-        touches[currentIndex].runs[id] = nil
-        propagateStarts(from: currentIndex)
+        guard isBenched(id, in: currentIndex) else { return }
+        armedSub = (armedSub == id) ? nil : id
     }
 
     /// Who holds the ball at the END of a touch, following any passes made during it.

@@ -21,15 +21,16 @@ struct PlayerTokenView: View {
         let hasBall = !store.isAnimating && !store.isRendering && store.currentTouch.carrier == player.id
         let isBallTarget = store.tool == .ball && !benched
 
-        let ringColor: Color = cameOn ? .green : (hasBall ? .yellow : .white)
-        let ringWidth: CGFloat = cameOn ? 3.5 : (hasBall ? 3 : 2)
+        let armed = store.armedSub == player.id
+        let ringColor: Color = armed ? .cyan : (cameOn ? .green : (hasBall ? .yellow : .white))
+        let ringWidth: CGFloat = (armed || cameOn) ? 3.5 : (hasBall ? 3 : 2)
 
         ZStack {
             Circle()
                 .fill(cameOff ? Color(white: 0.5) : player.team.color)   // grey a player subbed off
                 .overlay(Circle().stroke(ringColor, lineWidth: ringWidth))
-                .shadow(color: cameOn ? .green.opacity(0.85) : .black.opacity(0.4),
-                        radius: cameOn ? 6 : 2, y: cameOn ? 0 : 1)
+                .shadow(color: armed ? .cyan.opacity(0.9) : (cameOn ? .green.opacity(0.85) : .black.opacity(0.4)),
+                        radius: (armed || cameOn) ? 6 : 2, y: (armed || cameOn) ? 0 : 1)
             Text(player.label)
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
@@ -47,7 +48,7 @@ struct PlayerTokenView: View {
         }
         .frame(width: diameter, height: diameter)
         .opacity(cameOff ? 0.55 : 1)
-        .scaleEffect(cameOn ? 1.12 : (isBallTarget ? 1.08 : 1.0))
+        .scaleEffect((armed || cameOn) ? 1.12 : (isBallTarget ? 1.08 : 1.0))
         .position(x: center.x + dragOffset.width, y: center.y + dragOffset.height)
         .highPriorityGesture(interaction(center: center, benched: benched))
     }

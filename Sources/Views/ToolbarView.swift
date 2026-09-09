@@ -27,13 +27,20 @@ struct ToolbarView: View {
 
             Spacer(minLength: 8)
 
-            Text("B17")
+            Text("B18")
                 .font(.caption2.weight(.heavy))
                 .padding(.horizontal, 6).padding(.vertical, 4)
                 .background(Capsule().fill(Color.orange))
                 .foregroundStyle(.black)
 
-            hint
+            if let armed = store.armedSub, let label = store.player(armed)?.label {
+                Text("Draw \(label)'s run out of the box")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.cyan)
+                    .lineLimit(1)
+            } else {
+                hint
+            }
 
             Spacer(minLength: 8)
 
