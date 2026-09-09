@@ -174,7 +174,9 @@ struct PlayCanvasView: View {
     }
 
     private func gesture(size: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+        // Report coordinates in the shared "play" space so they match the tokens exactly,
+        // regardless of frames, safe-area insets or view nesting.
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("play"))
             .onChanged { value in
                 let dn = norm(value.startLocation, size)
                 store.debug = String(format: "tX=%.2f tY=%.2f sub=%@", dn.x, dn.y,

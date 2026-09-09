@@ -31,6 +31,7 @@ struct ContentView: View {
                             .allowsHitTesting(active)
                     }
                 }
+                .coordinateSpace(name: "play")
             }
             .background(Color(white: 0.08))
         }
