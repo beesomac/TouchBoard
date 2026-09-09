@@ -157,10 +157,7 @@ struct PlayCanvasView: View {
                 case .run:
                     if runPlayer == nil {
                         let n = norm(value.startLocation, size)
-                        if let sub = store.armedSub {
-                            // Draw the armed sub's run; setRun anchors it to the box start.
-                            runPlayer = sub; runExtend = false; runPoints = [value.startLocation]
-                        } else if let ext = nearestRunEnd(to: n) {
+                        if let ext = nearestRunEnd(to: n) {
                             // Continue an existing run from its end (e.g. the run-on after a pass).
                             runPlayer = ext; runExtend = true; runPoints = [value.startLocation]
                         } else if let hit = nearestAnchor(to: n, onlyStarts: true) {
@@ -201,7 +198,6 @@ struct PlayCanvasView: View {
                         if runExtend { store.appendRun(id, points: pts) }
                         else { store.setRun(id, points: pts) }
                     }
-                    store.armedSub = nil                       // the armed sub's run is drawn
                     runPlayer = nil; runPoints = []; runExtend = false
                 case .pass:
                     if let e = editing {

@@ -10,6 +10,7 @@ struct PlayerTokenView: View {
     private let diameter: CGFloat = 40
 
     @State private var dragOffset: CGSize = .zero
+    @State private var runPath: [CGPoint] = []   // building a sub's run out of the box
 
     var body: some View {
         let pos = store.displayPos(player.id)
@@ -56,23 +57,35 @@ struct PlayerTokenView: View {
     private func interaction(center: CGPoint, benched: Bool) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                if store.tool == .position && !benched { dragOffset = value.translation }
+                if benched {
+                    // Build the sub's run out of the box (the token itself captures this,
+                    // since the box is outside the canvas). The sub stays put in the box.
+                    let p = CGPoint(x: center.x + value.translation.width,
+                                    y: center.y + value.translation.height)
+                    if runPath.isEmpty { runPath = [center] }
+                    runPath.append(p)
+                } else if store.tool == .position {
+                    dragOffset = value.translation
+                }
             }
             .onEnded { value in
                 let moved = hypot(value.translation.width, value.translation.height)
-                if moved < 10 {
-                    // A tap: set the ball carrier in Ball mode; otherwise tap a bench sub to
-                    // bring it on. (tapPlayer only acts on benched players.)
-                    if store.tool == .ball && !benched {
-                        store.setCarrier(player.id)
+                if benched {
+                    if moved >= 10 && runPath.count > 1 {
+                        // Drag → the sub's run out of the box (anchored to its box start).
+                        store.setRun(player.id,
+                                     points: runPath.map { CGPoint(x: $0.x / areaSize.width,
+                                                                   y: $0.y / areaSize.height) })
                     } else {
-                        store.tapPlayer(player.id)
+                        store.tapPlayer(player.id)   // tap → arm/select the sub
                     }
-                    dragOffset = .zero
+                    runPath = []
                     return
                 }
-                // A drag only repositions an on-field player in Move mode.
-                if !benched && store.tool == .position {
+                if moved < 10 {
+                    if store.tool == .ball { store.setCarrier(player.id) }
+                    else { store.tapPlayer(player.id) }
+                } else if store.tool == .position {
                     let nx = (center.x + value.translation.width) / areaSize.width
                     let ny = (center.y + value.translation.height) / areaSize.height
                     store.movePlayerStart(player.id, to: CGPoint(x: nx, y: ny))
