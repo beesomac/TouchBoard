@@ -23,10 +23,12 @@ struct ContentView: View {
                     // All players in one layer; on/off is per touch (a bench player can be
                     // dragged on in Move mode, an on-field player dragged off).
                     ForEach(store.roster) { player in
-                        // Tokens handle drags in Move/Ball; in Run/Pass/Erase the canvas owns
-                        // all drags (including sub interchanges), so the two never conflict.
+                        // Bench subs are always tappable (tap-to-sub); on-field players respond
+                        // in Move/Ball, and also while a sub is armed (to receive the swap tap).
+                        let benched = store.isBenched(player.id, in: store.displayIndex)
                         let active = !store.isAnimating
-                            && (store.tool == .position || store.tool == .ball)
+                            && (benched || store.tool == .position || store.tool == .ball
+                                || store.armedSub != nil)
                         PlayerTokenView(store: store, player: player, areaSize: size)
                             .allowsHitTesting(active)
                     }

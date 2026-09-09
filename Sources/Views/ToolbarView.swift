@@ -27,16 +27,20 @@ struct ToolbarView: View {
 
             Spacer(minLength: 8)
 
-            Text("B14")
+            Text("B15")
                 .font(.caption2.weight(.heavy))
                 .padding(.horizontal, 6).padding(.vertical, 4)
                 .background(Capsule().fill(Color.orange))
                 .foregroundStyle(.black)
 
-            Text(store.debug)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.yellow)
-                .lineLimit(1)
+            if let armed = store.armedSub, let label = store.player(armed)?.label {
+                Text("Tap a player to bring \(label) on")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.cyan)
+                    .lineLimit(1)
+            } else {
+                hint
+            }
 
             Spacer(minLength: 8)
 

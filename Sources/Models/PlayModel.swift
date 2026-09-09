@@ -719,6 +719,20 @@ final class PlayStore: ObservableObject {
         touches[currentIndex].carrier = id
     }
 
+    /// Tap-to-sub: tapping a bench player arms it; tapping an on-field team-mate then swaps
+    /// them (the sub comes on, the tapped player goes off). Reliable on any device/tool.
+    @Published var armedSub: UUID? = nil
+    func tapPlayer(_ id: UUID) {
+        guard let p = player(id) else { return }
+        if isBenched(id, in: currentIndex) {
+            armedSub = (armedSub == id) ? nil : id          // arm / disarm this sub
+        } else if let sub = armedSub, player(sub)?.team == p.team {
+            pushHistory()
+            interchange(sub: sub, onField: id)               // swap the armed sub in for this player
+            armedSub = nil
+        }
+    }
+
     /// Who holds the ball at the END of a touch, following any passes made during it.
     func finalCarrier(in index: Int) -> UUID {
         let t = touches[index]

@@ -18,9 +18,6 @@ struct PlayCanvasView: View {
     @State private var editPoint: CGPoint? = nil      // view coords
     // Live snap target while drawing/editing a pass (view coords + which player).
     @State private var snap: (point: CGPoint, id: UUID)? = nil
-    // Sub interchange started from the bench (handled here so it never fights the tokens).
-    @State private var draggingSub: UUID? = nil
-    @State private var subDragLoc: CGPoint = .zero    // view coords
 
     var body: some View {
         let size = areaSize
@@ -144,14 +141,6 @@ struct PlayCanvasView: View {
                     lace.move(to: CGPoint(x: b.x, y: b.y - 5)); lace.addLine(to: CGPoint(x: b.x, y: b.y + 5))
                     ctx.stroke(lace, with: .color(.white), style: StrokeStyle(lineWidth: 2))
                 }
-                // Ghost of a sub being dragged from the bench onto a player (interchange).
-                if let sub = draggingSub, let p = store.player(sub) {
-                    let c = subDragLoc
-                    let r = CGRect(x: c.x - 20, y: c.y - 20, width: 40, height: 40)
-                    ctx.fill(Path(ellipseIn: r), with: .color(p.team.color.opacity(0.9)))
-                    ctx.stroke(Path(ellipseIn: r), with: .color(.green), style: StrokeStyle(lineWidth: 3))
-                    ctx.draw(Text(p.label).font(.system(size: 15, weight: .bold)).foregroundColor(.white), at: c)
-                }
             }
             .frame(width: size.width, height: size.height)
             .contentShape(Rectangle())
@@ -160,34 +149,9 @@ struct PlayCanvasView: View {
 
     // MARK: Gestures
 
-    /// The benched sub whose token the drag began on (within reach), if any — for interchanges.
-    /// Uses proximity to the sub's token rather than a fixed bench rectangle, so it is robust.
-    private func benchSubAt(_ loc: CGPoint, _ size: CGSize) -> UUID? {
-        let n = norm(loc, size)
-        let threshold: CGFloat = 0.06
-        var best: (id: UUID, d: CGFloat)? = nil
-        for p in store.roster where store.isBenched(p.id, in: store.currentIndex) {
-            let d = Geo.dist(store.startPos(p.id, in: store.currentIndex), n)
-            if d <= threshold && (best == nil || d < best!.d) { best = (p.id, d) }
-        }
-        return best?.id
-    }
-
     private func gesture(size: CGSize) -> some Gesture {
-        // Report coordinates in the shared "play" space so they match the tokens exactly,
-        // regardless of frames, safe-area insets or view nesting.
         DragGesture(minimumDistance: 0, coordinateSpace: .named("play"))
             .onChanged { value in
-                let dn = norm(value.startLocation, size)
-                store.debug = String(format: "tX=%.2f tY=%.2f sub=%@", dn.x, dn.y,
-                                     benchSubAt(value.startLocation, size).map { store.player($0)?.label ?? "?" } ?? "none")
-                // A drag that begins on a bench is a sub interchange — the canvas owns it so
-                // it never competes with the token gestures.
-                if draggingSub == nil, runPlayer == nil, passFrom == nil, editing == nil,
-                   let sub = benchSubAt(value.startLocation, size) {
-                    draggingSub = sub
-                }
-                if draggingSub != nil { subDragLoc = value.location; return }
                 switch store.tool {
                 case .run:
                     if runPlayer == nil {
@@ -225,12 +189,6 @@ struct PlayCanvasView: View {
                 }
             }
             .onEnded { value in
-                // Finish a sub interchange: drop onto a team-mate swaps them, else it reverts.
-                if let sub = draggingSub {
-                    store.movePlayerStart(sub, to: norm(value.location, size))
-                    draggingSub = nil
-                    return
-                }
                 let n = norm(value.location, size)
                 switch store.tool {
                 case .run:
