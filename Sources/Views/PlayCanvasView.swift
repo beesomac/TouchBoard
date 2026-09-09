@@ -160,14 +160,15 @@ struct PlayCanvasView: View {
 
     // MARK: Gestures
 
-    /// The benched sub nearest a point that lands on a bench, if any (for interchanges).
+    /// The benched sub whose token the drag began on (within reach), if any — for interchanges.
+    /// Uses proximity to the sub's token rather than a fixed bench rectangle, so it is robust.
     private func benchSubAt(_ loc: CGPoint, _ size: CGSize) -> UUID? {
         let n = norm(loc, size)
-        guard FieldLayout.benchTop.contains(n) || FieldLayout.benchBottom.contains(n) else { return nil }
+        let threshold: CGFloat = 0.06
         var best: (id: UUID, d: CGFloat)? = nil
         for p in store.roster where store.isBenched(p.id, in: store.currentIndex) {
             let d = Geo.dist(store.startPos(p.id, in: store.currentIndex), n)
-            if best == nil || d < best!.d { best = (p.id, d) }
+            if d <= threshold && (best == nil || d < best!.d) { best = (p.id, d) }
         }
         return best?.id
     }
@@ -176,11 +177,8 @@ struct PlayCanvasView: View {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 let dn = norm(value.startLocation, size)
-                var subY = "-"
-                if let s = store.roster.first(where: { store.isBenched($0.id, in: store.currentIndex) }) {
-                    subY = String(format: "%.2f", store.startPos(s.id, in: store.currentIndex).y)
-                }
-                store.debug = String(format: "touchY=%.2f subY=%@ h=%d", dn.y, subY, Int(size.height))
+                store.debug = String(format: "tX=%.2f tY=%.2f sub=%@", dn.x, dn.y,
+                                     benchSubAt(value.startLocation, size).map { store.player($0)?.label ?? "?" } ?? "none")
                 // A drag that begins on a bench is a sub interchange — the canvas owns it so
                 // it never competes with the token gestures.
                 if draggingSub == nil, runPlayer == nil, passFrom == nil, editing == nil,
