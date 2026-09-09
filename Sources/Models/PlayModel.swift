@@ -199,7 +199,39 @@ final class PlayStore: ObservableObject {
 
     private var history: [(touches: [Touch], index: Int)] = []
 
-    init() { resetAll() }
+    // MARK: Persistence (auto-save the current play so it survives relaunches)
+
+    private var saveBag = Set<AnyCancellable>()
+    private var saveURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("current-play.json")
+    }
+    private struct PlaySave: Codable {
+        var roster: [Player]; var touches: [Touch]; var currentIndex: Int; var startPosition: StartPosition
+    }
+    private func save() {
+        let snap = PlaySave(roster: roster, touches: touches,
+                            currentIndex: currentIndex, startPosition: startPosition)
+        try? JSONEncoder().encode(snap).write(to: saveURL)
+    }
+    @discardableResult private func load() -> Bool {
+        guard let data = try? Data(contentsOf: saveURL),
+              let snap = try? JSONDecoder().decode(PlaySave.self, from: data),
+              !snap.touches.isEmpty, !snap.roster.isEmpty else { return false }
+        roster = snap.roster
+        touches = snap.touches
+        currentIndex = min(max(snap.currentIndex, 0), snap.touches.count - 1)
+        startPosition = snap.startPosition
+        return true
+    }
+
+    init() {
+        if !load() { resetAll() }
+        // Auto-save shortly after any edit.
+        $touches.debounce(for: .seconds(0.4), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.save() }
+            .store(in: &saveBag)
+    }
 
     // MARK: Roster & formation
 

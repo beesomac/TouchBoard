@@ -27,7 +27,7 @@ struct ToolbarView: View {
 
             Spacer(minLength: 8)
 
-            Text("B23")
+            Text("B24")
                 .font(.caption2.weight(.heavy))
                 .padding(.horizontal, 6).padding(.vertical, 4)
                 .background(Capsule().fill(Color.orange))
