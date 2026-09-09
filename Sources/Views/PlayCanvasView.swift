@@ -82,10 +82,14 @@ struct PlayCanvasView: View {
                     }
                 }
 
-                // In-progress run preview.
+                // In-progress run preview (canvas extend, and token-drawn runs).
                 if runPoints.count > 1, let id = runPlayer {
                     let color = store.player(id)?.team.color ?? .white
                     drawRun(runPoints.map { norm($0, size) }, color: color, ctx: &ctx, size: size)
+                }
+                if store.liveRunPoints.count > 1 {
+                    let color = store.player(store.liveRunID ?? UUID())?.team.color ?? .white
+                    drawRun(store.liveRunPoints, color: color, ctx: &ctx, size: size)
                 }
 
                 // In-progress / editing pass preview, with live snap feedback.

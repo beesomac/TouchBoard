@@ -64,6 +64,10 @@ struct PlayerTokenView: View {
                                     y: center.y + value.translation.height)
                     if runPath.isEmpty { runPath = [center] }
                     runPath.append(p)
+                    // Live preview so the line follows the finger as it's drawn.
+                    store.liveRunID = player.id
+                    store.liveRunPoints = runPath.map { CGPoint(x: $0.x / areaSize.width,
+                                                                y: $0.y / areaSize.height) }
                 } else if store.tool == .position {
                     dragOffset = value.translation
                 }
@@ -79,6 +83,7 @@ struct PlayerTokenView: View {
                         store.tapPlayer(player.id)   // tap → arm/select the sub
                     }
                     runPath = []
+                    store.liveRunID = nil; store.liveRunPoints = []
                     return
                 }
                 if moved < 10 {

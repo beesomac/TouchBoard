@@ -171,7 +171,9 @@ final class PlayStore: ObservableObject {
     @Published var touches: [Touch] = []
     @Published var currentIndex: Int = 0
     @Published var tool: Tool = .position
-    @Published var debug: String = "ready"   // on-screen diagnostic for device testing
+    // Live preview of a run being dragged from a token (normalised points + who).
+    @Published var liveRunID: UUID? = nil
+    @Published var liveRunPoints: [CGPoint] = []
     @Published private(set) var startPosition: StartPosition = .halfway
 
     // Animation state (single source of truth for on-screen positions).
