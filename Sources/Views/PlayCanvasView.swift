@@ -26,8 +26,9 @@ struct PlayCanvasView: View {
                 let animating = store.isAnimating || store.isRendering
                 let runAlpha = animating ? 0.28 : 1.0
 
-                // Run lines — dashed while off the ball, solid while carrying it.
-                for p in store.onFieldPlayers {
+                // Run lines — dashed while off the ball, solid while carrying it. Iterate all
+                // players so a sub running out of the box (benched at the start) is drawn too.
+                for p in store.roster {
                     guard let run = t.runs[p.id], run.points.count > 1 else { continue }
                     drawSegmentedRun(id: p.id, points: run.points, team: p.team,
                                      alpha: runAlpha, touch: t, ctx: &ctx, size: size)
@@ -38,7 +39,7 @@ struct PlayCanvasView: View {
                     drawPass(pass, color: color.opacity(runAlpha), ctx: &ctx, size: size)
                 }
                 // Catch (ring) and pass (diamond) markers on each run.
-                for p in store.onFieldPlayers {
+                for p in store.roster {
                     guard let run = t.runs[p.id], run.points.count > 1 else { continue }
                     let ev = store.ballEvents(p.id, in: t)
                     if let c = ev.catchAt {
@@ -74,7 +75,7 @@ struct PlayCanvasView: View {
                 }
                 // Handle on each run's end while the Run tool is active (grab to extend).
                 if store.tool == .run && !animating {
-                    for p in store.onFieldPlayers {
+                    for p in store.roster {
                         guard let run = t.runs[p.id], run.points.count > 1,
                               let end = run.points.last else { continue }
                         drawHandle(at: denorm(end, size), ctx: &ctx)

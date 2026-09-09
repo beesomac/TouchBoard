@@ -325,9 +325,8 @@ final class PlayStore: ObservableObject {
     }
 
     func endPos(_ id: UUID, in index: Int? = nil) -> CGPoint {
-        let idx = index ?? currentIndex
-        let t = touches[idx]
-        if !isBenched(id, in: idx), let run = t.runs[id], let last = run.points.last { return last }
+        let t = touches[index ?? currentIndex]
+        if let run = t.runs[id], let last = run.points.last { return last }   // a run (incl. into/out of the box) wins
         return startPos(id, in: index)
     }
 
@@ -456,8 +455,9 @@ final class PlayStore: ObservableObject {
 
     private func animatedPos(_ id: UUID, in index: Int, u: CGFloat) -> CGPoint {
         let t = touches[index]
-        // A subbed-off player stays parked on the bench and never runs.
-        if !isBenched(id, in: index), let run = t.runs[id], run.points.count > 1 {
+        // Any player with a run animates along it — including a sub running out of the box
+        // and a player running off into it.
+        if let run = t.runs[id], run.points.count > 1 {
             return Geo.pointAlong(run.points, timedProgress(id, in: index, at: u))
         }
         return t.starts[id] ?? CGPoint(x: 0.5, y: 0.9)
@@ -562,16 +562,14 @@ final class PlayStore: ObservableObject {
         return best?.id
     }
 
-    /// Swap a benched sub with an on-field team-mate for this touch: the sub takes the field
-    /// spot (and the ball, if that player had it); the replaced player goes to the bench.
+    /// Live interchange as runs: the sub runs out of the box onto the replaced player's spot,
+    /// while that player runs off into the box. Both are on during this play (7 on the field);
+    /// at the next play-the-ball the runner-off ends in the box (subbed off) and the sub is on.
     private func interchange(sub subID: UUID, onField fieldID: UUID) {
-        let benchSpot = startPos(subID, in: currentIndex)
-        let fieldSpot = startPos(fieldID, in: currentIndex)
-        touches[currentIndex].starts[subID] = fieldSpot
-        touches[currentIndex].starts[fieldID] = benchSpot
-        touches[currentIndex].runs[subID] = nil
-        touches[currentIndex].runs[fieldID] = nil
-        if touches[currentIndex].carrier == fieldID { touches[currentIndex].carrier = subID }
+        let benchSpot = startPos(subID, in: currentIndex)     // the sub's spot in the box
+        let fieldSpot = startPos(fieldID, in: currentIndex)   // the on-field player's spot
+        touches[currentIndex].runs[subID] = RunLine(points: [benchSpot, fieldSpot])
+        touches[currentIndex].runs[fieldID] = RunLine(points: [fieldSpot, benchSpot])
         propagateStarts(from: currentIndex)
     }
 
