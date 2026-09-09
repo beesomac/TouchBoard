@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Xcode / build output
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Misc
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
