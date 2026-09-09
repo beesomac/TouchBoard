@@ -4,6 +4,7 @@ import SwiftUI
 /// and captures Run / Pass / Erase gestures.
 struct PlayCanvasView: View {
     @ObservedObject var store: PlayStore
+    let areaSize: CGSize   // shared with the tokens so coordinates match exactly
 
     // Run drawing
     @State private var runPlayer: UUID? = nil
@@ -22,9 +23,8 @@ struct PlayCanvasView: View {
     @State private var subDragLoc: CGPoint = .zero    // view coords
 
     var body: some View {
-        GeometryReader { geo in
-            let size = geo.size
-            Canvas { ctx, _ in
+        let size = areaSize
+        return Canvas { ctx, _ in
                 let t = store.displayTouch
                 let animating = store.isAnimating || store.isRendering
                 let runAlpha = animating ? 0.28 : 1.0
@@ -153,9 +153,9 @@ struct PlayCanvasView: View {
                     ctx.draw(Text(p.label).font(.system(size: 15, weight: .bold)).foregroundColor(.white), at: c)
                 }
             }
+            .frame(width: size.width, height: size.height)
             .contentShape(Rectangle())
             .gesture(gesture(size: size))
-        }
     }
 
     // MARK: Gestures
@@ -175,6 +175,12 @@ struct PlayCanvasView: View {
     private func gesture(size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
+                let dn = norm(value.startLocation, size)
+                var subY = "-"
+                if let s = store.roster.first(where: { store.isBenched($0.id, in: store.currentIndex) }) {
+                    subY = String(format: "%.2f", store.startPos(s.id, in: store.currentIndex).y)
+                }
+                store.debug = String(format: "touchY=%.2f subY=%@ h=%d", dn.y, subY, Int(size.height))
                 // A drag that begins on a bench is a sub interchange — the canvas owns it so
                 // it never competes with the token gestures.
                 if draggingSub == nil, runPlayer == nil, passFrom == nil, editing == nil,

@@ -17,7 +17,7 @@ struct ContentView: View {
                 ZStack {
                     FieldView()
 
-                    PlayCanvasView(store: store)
+                    PlayCanvasView(store: store, areaSize: size)
                         .allowsHitTesting(canvasActive)
 
                     // All players in one layer; on/off is per touch (a bench player can be

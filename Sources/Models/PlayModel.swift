@@ -171,6 +171,7 @@ final class PlayStore: ObservableObject {
     @Published var touches: [Touch] = []
     @Published var currentIndex: Int = 0
     @Published var tool: Tool = .position
+    @Published var debug: String = "ready"   // on-screen diagnostic for device testing
     @Published private(set) var startPosition: StartPosition = .halfway
 
     // Animation state (single source of truth for on-screen positions).

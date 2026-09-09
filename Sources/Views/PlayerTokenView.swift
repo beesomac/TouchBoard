@@ -55,6 +55,7 @@ struct PlayerTokenView: View {
     private func interaction(center: CGPoint, benched: Bool) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
+                store.debug = "TOKEN \(player.label) benched=\(benched)"
                 // A bench sub follows the finger in any tool (it can only interchange);
                 // an on-field player only drags in Move.
                 if benched || store.tool == .position { dragOffset = value.translation }

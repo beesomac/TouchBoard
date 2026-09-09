@@ -12,7 +12,7 @@ struct ExportStack: View {
         ZStack {
             Color(white: 0.08)
             FieldView()
-            PlayCanvasView(store: store).allowsHitTesting(false)
+            PlayCanvasView(store: store, areaSize: size).allowsHitTesting(false)
             ForEach(store.roster) { p in
                 PlayerTokenView(store: store, player: p, areaSize: size)
                     .allowsHitTesting(false)

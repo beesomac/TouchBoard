@@ -27,13 +27,16 @@ struct ToolbarView: View {
 
             Spacer(minLength: 8)
 
-            Text("BUILD 9")
+            Text("B12")
                 .font(.caption2.weight(.heavy))
-                .padding(.horizontal, 8).padding(.vertical, 4)
+                .padding(.horizontal, 6).padding(.vertical, 4)
                 .background(Capsule().fill(Color.orange))
                 .foregroundStyle(.black)
 
-            hint
+            Text(store.debug)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.yellow)
+                .lineLimit(1)
 
             Spacer(minLength: 8)
 
