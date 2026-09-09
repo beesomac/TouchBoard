@@ -184,7 +184,7 @@ final class PlayStore: ObservableObject {
     private var scopePos = 0
     private var elapsed: TimeInterval = 0
     private var lastTick: Date?
-    private let touchDuration: TimeInterval = 3.0
+    private let touchDuration: TimeInterval = 4.5   // slower, smoother run animation
     private var transitioning = false
     private var transElapsed: TimeInterval = 0
     private let transitionDuration: TimeInterval = 0.6
@@ -330,10 +330,11 @@ final class PlayStore: ObservableObject {
         return startPos(id, in: index)
     }
 
-    /// Ease-in-out so runs accelerate and settle rather than starting/stopping abruptly.
+    /// Smootherstep ease-in-out (gentler acceleration/deceleration than smoothstep) so runs
+    /// start and settle very smoothly.
     private func eased(_ t: CGFloat) -> CGFloat {
         let c = min(max(t, 0), 1)
-        return c * c * (3 - 2 * c)
+        return c * c * c * (c * (c * 6 - 15) + 10)
     }
     private var animProgress: CGFloat { eased(animU) }
 
@@ -404,7 +405,7 @@ final class PlayStore: ObservableObject {
         return animatedPos(holder, in: index, u: uu)
     }
 
-    private let passFlight: CGFloat = 0.14   // fraction of the touch a pass is in the air
+    private let passFlight: CGFloat = 0.22   // fraction of the touch a pass is in the air (slower ball)
 
     /// Orders passes into the actual ball chain: carrier → receiver → next passer …
     func passChain(_ t: Touch) -> [Pass] {

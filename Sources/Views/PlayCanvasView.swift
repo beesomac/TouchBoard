@@ -155,13 +155,12 @@ struct PlayCanvasView: View {
             .onChanged { value in
                 switch store.tool {
                 case .run:
+                    // New runs are drawn from the player tokens; the canvas only extends an
+                    // existing run from its end handle.
                     if runPlayer == nil {
                         let n = norm(value.startLocation, size)
                         if let ext = nearestRunEnd(to: n) {
-                            // Continue an existing run from its end (e.g. the run-on after a pass).
                             runPlayer = ext; runExtend = true; runPoints = [value.startLocation]
-                        } else if let hit = nearestAnchor(to: n, onlyStarts: true) {
-                            runPlayer = hit.id; runExtend = false; runPoints = [value.startLocation]
                         }
                     } else {
                         runPoints.append(value.location)

@@ -57,9 +57,9 @@ struct PlayerTokenView: View {
     private func interaction(center: CGPoint, benched: Bool) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                if benched {
-                    // Build the sub's run out of the box (the token itself captures this,
-                    // since the box is outside the canvas). The sub stays put in the box.
+                // Runs are drawn from the token itself (reliable coords) so a run can start in
+                // a box (a sub running out) or end in one (a player running off).
+                if drawsRun {
                     let p = CGPoint(x: center.x + value.translation.width,
                                     y: center.y + value.translation.height)
                     if runPath.isEmpty { runPath = [center] }
@@ -70,9 +70,8 @@ struct PlayerTokenView: View {
             }
             .onEnded { value in
                 let moved = hypot(value.translation.width, value.translation.height)
-                if benched {
+                if drawsRun {
                     if moved >= 10 && runPath.count > 1 {
-                        // Drag → the sub's run out of the box (anchored to its box start).
                         store.setRun(player.id,
                                      points: runPath.map { CGPoint(x: $0.x / areaSize.width,
                                                                    y: $0.y / areaSize.height) })
@@ -93,4 +92,8 @@ struct PlayerTokenView: View {
                 dragOffset = .zero
             }
     }
+
+    /// A drag on this token draws its run when the Run tool is active, or any time for a
+    /// benched sub (which can only run out of its box).
+    private var drawsRun: Bool { store.tool == .run || store.isBenched(player.id, in: store.displayIndex) }
 }
