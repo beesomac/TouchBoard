@@ -25,6 +25,7 @@ struct PlayCanvasView: View {
                 let t = store.displayTouch
                 let animating = store.isAnimating || store.isRendering
                 let runAlpha = animating ? 0.28 : 1.0
+                let passAlpha = animating ? 0.75 : 1.0   // keep passes clearly visible in playback
 
                 // Run lines — dashed while off the ball, solid while carrying it. Iterate all
                 // players so a sub running out of the box (benched at the start) is drawn too.
@@ -36,7 +37,7 @@ struct PlayCanvasView: View {
                 // Passes.
                 for pass in t.passes {
                     let color = store.player(pass.from)?.team.color ?? .white
-                    drawPass(pass, color: color.opacity(runAlpha), ctx: &ctx, size: size)
+                    drawPass(pass, color: color.opacity(passAlpha), ctx: &ctx, size: size)
                 }
                 // Catch (ring) and pass (diamond) markers on each run.
                 for p in store.roster {
