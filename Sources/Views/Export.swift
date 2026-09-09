@@ -25,16 +25,16 @@ struct ExportStack: View {
 
 /// Wraps a file in the system share sheet.
 struct ShareSheet: UIViewControllerRepresentable {
-    let url: URL
+    let urls: [URL]
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        UIActivityViewController(activityItems: urls, applicationActivities: nil)
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }
 
 struct ExportItem: Identifiable {
     let id = UUID()
-    let url: URL
+    let urls: [URL]
 }
 
 /// Renders every frame of the whole set and encodes an MP4.

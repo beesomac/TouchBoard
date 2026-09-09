@@ -386,6 +386,42 @@ final class PlayStore: ObservableObject {
     }
 
     /// Ball position for an explicit touch/progress (used to build export frames).
+    /// Readable JSON of exactly what is stored (runs and passes with their anchors), so a
+    /// drawn play can be compared against the rendered animation.
+    func playDataJSON() -> Data {
+        func r(_ v: CGFloat) -> Double { (Double(v) * 1000).rounded() / 1000 }
+        func pt(_ p: CGPoint) -> [Double] { [r(p.x), r(p.y)] }
+        func inBox(_ p: CGPoint) -> Bool { FieldLayout.benchTop.contains(p) || FieldLayout.benchBottom.contains(p) }
+        var touchesOut: [[String: Any]] = []
+        for (i, t) in touches.enumerated() {
+            var players: [[String: Any]] = []
+            for p in roster {
+                guard let s = t.starts[p.id] else { continue }
+                var pd: [String: Any] = ["player": p.label, "team": "\(p.team)",
+                                         "start": pt(s), "startInBox": inBox(s)]
+                if let run = t.runs[p.id] {
+                    pd["run"] = run.points.map { pt($0) }
+                    pd["runEndsInBox"] = inBox(run.points.last ?? s)
+                }
+                players.append(pd)
+            }
+            var passes: [[String: Any]] = []
+            for pass in t.passes {
+                passes.append([
+                    "from": player(pass.from)?.label ?? "?", "to": player(pass.to)?.label ?? "?",
+                    "fromPoint": pt(pass.fromPoint), "toPoint": pt(pass.toPoint),
+                    "toPointInBox": inBox(pass.toPoint),
+                    "fromT": r(pass.fromT), "toT": r(pass.toT)
+                ])
+            }
+            touchesOut.append(["touch": i, "start": "\(t.start)",
+                               "carrier": player(t.carrier)?.label ?? "?",
+                               "players": players, "passes": passes])
+        }
+        return (try? JSONSerialization.data(withJSONObject: touchesOut,
+                                            options: [.prettyPrinted, .sortedKeys])) ?? Data()
+    }
+
     func frameBall(index: Int, u: CGFloat) -> CGPoint {
         let uu = eased(u)
         let t = touches[index]

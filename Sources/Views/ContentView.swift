@@ -41,7 +41,7 @@ struct ContentView: View {
         .background(Color(white: 0.08))
         .ignoresSafeArea(.container, edges: .bottom)
         .overlay { if isExporting { exportingOverlay } }
-        .sheet(item: $exportItem) { ShareSheet(url: $0.url) }
+        .sheet(item: $exportItem) { ShareSheet(urls: $0.urls) }
     }
 
     private var exportingOverlay: some View {
@@ -63,7 +63,13 @@ struct ContentView: View {
         Task {
             let url = await AnimationExporter.export(store: store)
             isExporting = false
-            if let url { exportItem = ExportItem(url: url) }
+            guard let url else { return }
+            // Also write a readable play-data JSON so the drawn play can be compared to the video.
+            var urls = [url]
+            let jsonURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("TouchBoard-play.json")
+            if (try? store.playDataJSON().write(to: jsonURL)) != nil { urls.append(jsonURL) }
+            exportItem = ExportItem(urls: urls)
         }
     }
 }
