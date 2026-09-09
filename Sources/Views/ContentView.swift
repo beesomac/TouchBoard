@@ -23,12 +23,11 @@ struct ContentView: View {
                     // All players in one layer; on/off is per touch (a bench player can be
                     // dragged on in Move mode, an on-field player dragged off).
                     ForEach(store.roster) { player in
-                        // Bench subs are always tappable (tap-to-sub); on-field players respond
-                        // in Move/Ball, and also while a sub is armed (to receive the swap tap).
+                        // Bench subs are always tappable (tap to bring on); on-field players
+                        // respond in Move (reposition) and Ball (set carrier).
                         let benched = store.isBenched(player.id, in: store.displayIndex)
                         let active = !store.isAnimating
-                            && (benched || store.tool == .position || store.tool == .ball
-                                || store.armedSub != nil)
+                            && (benched || store.tool == .position || store.tool == .ball)
                         PlayerTokenView(store: store, player: player, areaSize: size)
                             .allowsHitTesting(active)
                     }

@@ -21,23 +21,15 @@ struct PlayerTokenView: View {
         let hasBall = !store.isAnimating && !store.isRendering && store.currentTouch.carrier == player.id
         let isBallTarget = store.tool == .ball && !benched
 
-        // Tap-to-sub highlighting: the armed sub, and the on-field team-mates it can replace.
-        let armed = store.armedSub == player.id
-        let isSubTarget = store.armedSub != nil && !benched
-            && store.player(store.armedSub!)?.team == player.team
-
-        let ringColor: Color = armed ? .cyan
-            : isSubTarget ? .green
-            : cameOn ? .green
-            : hasBall ? .yellow : .white
-        let ringWidth: CGFloat = (armed || isSubTarget || cameOn) ? 3.5 : (hasBall ? 3 : 2)
+        let ringColor: Color = cameOn ? .green : (hasBall ? .yellow : .white)
+        let ringWidth: CGFloat = cameOn ? 3.5 : (hasBall ? 3 : 2)
 
         ZStack {
             Circle()
                 .fill(cameOff ? Color(white: 0.5) : player.team.color)   // grey a player subbed off
                 .overlay(Circle().stroke(ringColor, lineWidth: ringWidth))
-                .shadow(color: armed ? .cyan.opacity(0.9) : (cameOn ? .green.opacity(0.85) : .black.opacity(0.4)),
-                        radius: (armed || cameOn) ? 6 : 2, y: (armed || cameOn) ? 0 : 1)
+                .shadow(color: cameOn ? .green.opacity(0.85) : .black.opacity(0.4),
+                        radius: cameOn ? 6 : 2, y: cameOn ? 0 : 1)
             Text(player.label)
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
@@ -55,7 +47,7 @@ struct PlayerTokenView: View {
         }
         .frame(width: diameter, height: diameter)
         .opacity(cameOff ? 0.55 : 1)
-        .scaleEffect((armed || cameOn) ? 1.12 : (isBallTarget ? 1.08 : 1.0))
+        .scaleEffect(cameOn ? 1.12 : (isBallTarget ? 1.08 : 1.0))
         .position(x: center.x + dragOffset.width, y: center.y + dragOffset.height)
         .highPriorityGesture(interaction(center: center, benched: benched))
     }
@@ -68,8 +60,9 @@ struct PlayerTokenView: View {
             .onEnded { value in
                 let moved = hypot(value.translation.width, value.translation.height)
                 if moved < 10 {
-                    // A tap: set the ball carrier in Ball mode, otherwise drive tap-to-sub.
-                    if store.tool == .ball && !benched && store.armedSub == nil {
+                    // A tap: set the ball carrier in Ball mode; otherwise tap a bench sub to
+                    // bring it on. (tapPlayer only acts on benched players.)
+                    if store.tool == .ball && !benched {
                         store.setCarrier(player.id)
                     } else {
                         store.tapPlayer(player.id)

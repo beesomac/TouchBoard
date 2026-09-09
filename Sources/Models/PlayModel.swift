@@ -527,49 +527,16 @@ final class PlayStore: ObservableObject {
 
     func movePlayerStart(_ id: UUID, to pos: CGPoint) {
         let p = CGPoint(x: min(max(pos.x, 0), 1), y: min(max(pos.y, 0), 1))
-        guard let team = player(id)?.team else { return }
-
-        // A benched player (sub) comes on ONLY by being dropped onto the team-mate they are
-        // replacing — an interchange. Dropped anywhere else, it snaps back to the bench.
-        if isBenched(id, in: currentIndex) {
-            if let target = nearestOnFieldTeammate(to: p, team: team, excluding: id) {
-                pushHistory()
-                interchange(sub: id, onField: target)
-            }
-            return
-        }
-
-        // An on-field player just repositions; dropping onto a bench is ignored (use an
-        // interchange to take a player off), so a player never leaves the field by accident.
-        if FieldLayout.benchTop.contains(p) || FieldLayout.benchBottom.contains(p) { return }
         pushHistory()
         touches[currentIndex].starts[id] = p
-        if var run = touches[currentIndex].runs[id], !run.points.isEmpty {
+        // Dropped in a box the player is subbed off for this touch (no run); on the field the
+        // run stays attached to the token.
+        if FieldLayout.benchTop.contains(p) || FieldLayout.benchBottom.contains(p) {
+            touches[currentIndex].runs[id] = nil
+        } else if var run = touches[currentIndex].runs[id], !run.points.isEmpty {
             run.points[0] = p                                // keep the run attached to the token
             touches[currentIndex].runs[id] = run
         }
-        propagateStarts(from: currentIndex)
-    }
-
-    /// Nearest on-field team-mate to a point (within a token's reach), for interchanges.
-    private func nearestOnFieldTeammate(to p: CGPoint, team: Team, excluding: UUID) -> UUID? {
-        let threshold: CGFloat = 0.09   // generous, so it is easy to land on with a finger
-        var best: (id: UUID, dist: CGFloat)? = nil
-        for pl in onField(in: currentIndex) where pl.team == team && pl.id != excluding {
-            let d = Geo.dist(startPos(pl.id, in: currentIndex), p)
-            if d <= threshold && (best == nil || d < best!.dist) { best = (pl.id, d) }
-        }
-        return best?.id
-    }
-
-    /// Live interchange as runs: the sub runs out of the box onto the replaced player's spot,
-    /// while that player runs off into the box. Both are on during this play (7 on the field);
-    /// at the next play-the-ball the runner-off ends in the box (subbed off) and the sub is on.
-    private func interchange(sub subID: UUID, onField fieldID: UUID) {
-        let benchSpot = startPos(subID, in: currentIndex)     // the sub's spot in the box
-        let fieldSpot = startPos(fieldID, in: currentIndex)   // the on-field player's spot
-        touches[currentIndex].runs[subID] = RunLine(points: [benchSpot, fieldSpot])
-        touches[currentIndex].runs[fieldID] = RunLine(points: [fieldSpot, benchSpot])
         propagateStarts(from: currentIndex)
     }
 
@@ -717,18 +684,19 @@ final class PlayStore: ObservableObject {
         touches[currentIndex].carrier = id
     }
 
-    /// Tap-to-sub: tapping a bench player arms it; tapping an on-field team-mate then swaps
-    /// them (the sub comes on, the tapped player goes off). Reliable on any device/tool.
-    @Published var armedSub: UUID? = nil
+    /// Tap a bench sub to bring it onto the field, just inside the sideline by its box, so it
+    /// can then be given a run out. Getting back to six on the field (running someone off into
+    /// the box) is up to the coach; whoever ends in a box at the play-the-ball is subbed off.
     func tapPlayer(_ id: UUID) {
-        guard let p = player(id) else { return }
-        if isBenched(id, in: currentIndex) {
-            armedSub = (armedSub == id) ? nil : id          // arm / disarm this sub
-        } else if let sub = armedSub, player(sub)?.team == p.team {
-            pushHistory()
-            interchange(sub: sub, onField: id)               // swap the armed sub in for this player
-            armedSub = nil
-        }
+        guard let p = player(id), isBenched(id, in: currentIndex) else { return }
+        pushHistory()
+        let x = startPos(id, in: currentIndex).x
+        let edgeY: CGFloat = (p.team == .attack) ? FieldLayout.field.maxY - 0.03
+                                                 : FieldLayout.field.minY + 0.03
+        touches[currentIndex].starts[id] = CGPoint(
+            x: min(max(x, FieldLayout.field.minX + 0.02), FieldLayout.field.maxX - 0.02), y: edgeY)
+        touches[currentIndex].runs[id] = nil
+        propagateStarts(from: currentIndex)
     }
 
     /// Who holds the ball at the END of a touch, following any passes made during it.
