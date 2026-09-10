@@ -213,7 +213,7 @@ struct PlayCanvasView: View {
                     } else if let from = passFrom, let to = nearestAnchor(to: n, excluding: from.id) {
                         store.addPass(Pass(from: from.id, to: to.id,
                                            fromPoint: from.point, toPoint: to.point,
-                                           fromT: from.t, toT: to.t))
+                                           fromT: from.t, toT: to.t, slow: store.passSlow))
                     }
                     passFrom = nil; passCurrent = nil
                     editing = nil; editPoint = nil; snap = nil

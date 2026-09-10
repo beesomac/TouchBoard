@@ -70,12 +70,26 @@ struct Pass: Codable, Identifiable {
     var toPoint: CGPoint
     var fromT: CGFloat      // progress along passer's run line
     var toT: CGFloat        // progress along receiver's run line
+    var slow: Bool = false  // a lobbed/slow pass — the ball takes longer in the air
 
     init(id: UUID = UUID(), from: UUID, to: UUID,
-         fromPoint: CGPoint, toPoint: CGPoint, fromT: CGFloat, toT: CGFloat) {
+         fromPoint: CGPoint, toPoint: CGPoint, fromT: CGFloat, toT: CGFloat, slow: Bool = false) {
         self.id = id; self.from = from; self.to = to
         self.fromPoint = fromPoint; self.toPoint = toPoint
-        self.fromT = fromT; self.toT = toT
+        self.fromT = fromT; self.toT = toT; self.slow = slow
+    }
+
+    // Decode gracefully when older saves have no `slow` key.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        from = try c.decode(UUID.self, forKey: .from)
+        to = try c.decode(UUID.self, forKey: .to)
+        fromPoint = try c.decode(CGPoint.self, forKey: .fromPoint)
+        toPoint = try c.decode(CGPoint.self, forKey: .toPoint)
+        fromT = try c.decode(CGFloat.self, forKey: .fromT)
+        toT = try c.decode(CGFloat.self, forKey: .toT)
+        slow = try c.decodeIfPresent(Bool.self, forKey: .slow) ?? false
     }
 }
 
@@ -171,6 +185,7 @@ final class PlayStore: ObservableObject {
     @Published var touches: [Touch] = []
     @Published var currentIndex: Int = 0
     @Published var tool: Tool = .position
+    @Published var passSlow: Bool = false   // draw the next pass as a slow (lobbed) pass
     // Live preview of a run being dragged from a token (normalised points + who).
     @Published var liveRunID: UUID? = nil
     @Published var liveRunPoints: [CGPoint] = []
@@ -398,16 +413,15 @@ final class PlayStore: ObservableObject {
         return nil
     }
 
-    /// The pass origin if `(index, u)` lands mid-flight, else nil (pure; for export frames).
+    /// The pass origin (the drawn pass start) if `(index, u)` lands mid-flight, else nil.
     func frameFlightFrom(index: Int, u: CGFloat) -> CGPoint? {
         let uu = eased(u)
-        let t = touches[index]
-        let chain = passChain(t)
-        let times = passTimes(chain.count)
+        let chain = passChain(touches[index])
+        let times = passTimes(for: chain)
         for (i, pass) in chain.enumerated() {
-            let gi = times[i]
-            if uu >= gi + passFlight { continue }
-            if uu >= gi { return animatedPos(pass.from, in: index, u: uu) }
+            let gi = times[i], fl = flight(pass)
+            if uu >= gi + fl { continue }
+            if uu >= gi { return pass.fromPoint }
             break
         }
         return nil
@@ -458,16 +472,15 @@ final class PlayStore: ObservableObject {
         let uu = eased(u)
         let t = touches[index]
         let chain = passChain(t)
-        let times = passTimes(chain.count)
+        let times = passTimes(for: chain)
         var holder = t.carrier
         for (i, pass) in chain.enumerated() {
-            let gi = times[i]
-            if uu >= gi + passFlight {
+            let gi = times[i], fl = flight(pass)
+            if uu >= gi + fl {
                 holder = pass.to
             } else if uu >= gi {
-                let f = (uu - gi) / passFlight
-                return Geo.lerp(animatedPos(pass.from, in: index, u: uu),
-                                animatedPos(pass.to, in: index, u: uu), f)
+                let f = (uu - gi) / fl
+                return Geo.lerp(pass.fromPoint, pass.toPoint, f)   // ball follows the drawn pass exactly
             } else {
                 break
             }
@@ -475,7 +488,7 @@ final class PlayStore: ObservableObject {
         return animatedPos(holder, in: index, u: uu)
     }
 
-    private let passFlight: CGFloat = 0.22   // fraction of the touch a pass is in the air (slower ball)
+    private let passFlight: CGFloat = 0.22   // fraction of the touch a normal pass is in the air
 
     /// Orders passes into the actual ball chain: carrier → receiver → next passer …
     func passChain(_ t: Touch) -> [Pass] {
@@ -492,10 +505,20 @@ final class PlayStore: ObservableObject {
         return chain
     }
 
-    /// Global time (0...1) of each pass in the chain, spread evenly across the touch.
-    private func passTimes(_ count: Int) -> [CGFloat] {
-        guard count > 0 else { return [] }
-        return (0..<count).map { CGFloat($0 + 1) / CGFloat(count + 1) }
+    /// How long a pass is in the air, as a fraction of the touch (a slow pass is lobbed).
+    private func flight(_ pass: Pass) -> CGFloat { pass.slow ? passFlight * 2.2 : passFlight }
+
+    /// Start time (0...1) of each pass in the chain, spaced so each pass completes before the
+    /// next begins (accounting for slow passes), with equal carry gaps in between.
+    private func passTimes(for chain: [Pass]) -> [CGFloat] {
+        let n = chain.count
+        guard n > 0 else { return [] }
+        let flights = chain.map { flight($0) }
+        let gap = max(0, 1 - flights.reduce(0, +)) / CGFloat(n + 1)
+        var times: [CGFloat] = []
+        var g = gap
+        for i in 0..<n { times.append(g); g += flights[i] + gap }
+        return times
     }
 
     /// A player's progress along their run at global time `g`, honouring the moments they
@@ -504,11 +527,12 @@ final class PlayStore: ObservableObject {
     private func timedProgress(_ id: UUID, in index: Int, at g: CGFloat) -> CGFloat {
         let t = touches[index]
         let chain = passChain(t)
-        let times = passTimes(chain.count)
+        let times = passTimes(for: chain)
         var anchors: [(p: CGFloat, g: CGFloat)] = [(0, 0)]
         for (i, pass) in chain.enumerated() {
-            if pass.to == id { anchors.append((pass.toT, times[i])) }    // catch
-            if pass.from == id { anchors.append((pass.fromT, times[i])) } // pass
+            // Catch happens when the ball arrives (start + flight); pass when it's released.
+            if pass.to == id { anchors.append((pass.toT, min(times[i] + flight(pass), 1))) }
+            if pass.from == id { anchors.append((pass.fromT, times[i])) }
         }
         anchors.append((1, 1))
         anchors.sort { $0.g < $1.g }
@@ -572,16 +596,15 @@ final class PlayStore: ObservableObject {
         let u = animProgress
         let t = touches[animIndex]
         let chain = passChain(t)
-        let times = passTimes(chain.count)
+        let times = passTimes(for: chain)
         var holder = t.carrier
         for (i, pass) in chain.enumerated() {
-            let gi = times[i]
-            if u >= gi + passFlight {
+            let gi = times[i], fl = flight(pass)
+            if u >= gi + fl {
                 holder = pass.to
             } else if u >= gi {
-                let f = (u - gi) / passFlight
-                return Geo.lerp(animatedPos(pass.from, in: animIndex, u: u),
-                                animatedPos(pass.to, in: animIndex, u: u), f)
+                let f = (u - gi) / fl
+                return Geo.lerp(pass.fromPoint, pass.toPoint, f)   // ball follows the drawn pass exactly
             } else {
                 break
             }

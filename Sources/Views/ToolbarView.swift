@@ -27,13 +27,19 @@ struct ToolbarView: View {
 
             Spacer(minLength: 8)
 
-            Text("B25")
+            Text("B26")
                 .font(.caption2.weight(.heavy))
                 .padding(.horizontal, 6).padding(.vertical, 4)
                 .background(Capsule().fill(Color.orange))
                 .foregroundStyle(.black)
 
-            if let armed = store.armedSub, let label = store.player(armed)?.label {
+            if store.tool == .pass {
+                HStack(spacing: 6) {
+                    Text("Pass:").font(.footnote).foregroundStyle(Color(white: 0.6))
+                    passBtn("Normal", active: !store.passSlow) { store.passSlow = false }
+                    passBtn("Slow", active: store.passSlow) { store.passSlow = true }
+                }
+            } else if let armed = store.armedSub, let label = store.player(armed)?.label {
                 Text("Draw \(label)'s run out of the box")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.cyan)
@@ -51,6 +57,17 @@ struct ToolbarView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color(white: 0.12))
+    }
+
+    private func passBtn(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.caption.weight(.semibold))
+                .padding(.horizontal, 10).frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: 8)
+                    .fill(active ? Color.accentColor : Color(white: 0.24)))
+                .foregroundStyle(active ? .white : Color(white: 0.8))
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private var hint: some View {
